@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="QuizMind">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#7c6af7">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png">
+<title>QuizMind AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0f0f13;--bg2:#1a1a24;--bg3:#22222f;--bg4:#2a2a3a;
+  --accent:#7c6af7;--accent2:#a892ff;--green:#4ade80;
+  --text:#f0eff8;--text2:#a0a0c0;--text3:#6060a0;
+  --border:#2e2e45;--border2:#3e3e60;
+  --red:#f87171;--amber:#fbbf24;--blue:#60a5fa;
+  --radius:14px;--radius2:10px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  font-family:-apple-system,'Helvetica Neue',sans-serif;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text)}
+.app{display:flex;flex-direction:column;height:100%;height:100dvh;overflow:hidden}
+
+.header{background:var(--bg);padding:calc(var(--safe-top) + 12px) 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:10}
+.logo{font-size:20px;font-weight:700;letter-spacing:-0.5px}
+.logo span{color:var(--accent)}
+.api-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:7px 14px;border-radius:20px;font-size:13px;cursor:pointer}
+
+.scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.page-content{padding:16px 18px;max-width:800px;margin:0 auto;padding-bottom:calc(var(--safe-bottom) + 80px)}
+
+.bottom-nav{display:flex;background:var(--bg2);border-top:1px solid var(--border);padding:8px 0 calc(var(--safe-bottom) + 6px);flex-shrink:0}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;cursor:pointer;color:var(--text3);transition:color 0.2s;border:none;background:none}
+.nav-item.active{color:var(--accent)}
+.nav-icon{font-size:22px;line-height:1}
+.nav-label{font-size:10px;font-weight:500}
+
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.input-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 14px;cursor:pointer;text-align:center;transition:all 0.15s;user-select:none}
+.input-card:active{background:var(--bg3);border-color:var(--accent);transform:scale(0.97)}
+.input-card .icon{font-size:28px;margin-bottom:8px}
+.input-card h3{font-size:13px;font-weight:600;margin-bottom:3px}
+.input-card p{font-size:11px;color:var(--text2);line-height:1.4}
+#fileInput{display:none}
+
+.url-row{display:flex;gap:8px;margin-bottom:10px}
+.url-row input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:10px 13px;color:var(--text);font-size:14px;outline:none;-webkit-appearance:none}
+.url-row input:focus{border-color:var(--accent)}
+.url-row input::placeholder{color:var(--text3)}
+
+.opts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.opt-label{font-size:12px;color:var(--text2)}
+.opt-select{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:6px 10px;color:var(--text);font-size:13px;outline:none;-webkit-appearance:none;cursor:pointer}
+
+.btn{padding:11px 20px;border-radius:var(--radius2);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;border:none;display:inline-flex;align-items:center;gap:6px;user-select:none;-webkit-appearance:none}
+.btn:active{transform:scale(0.96)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:disabled{opacity:0.45;cursor:not-allowed}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}
+.btn-sm{padding:7px 13px;font-size:13px}
+.btn-danger{background:var(--bg3);color:var(--red);border:1px solid var(--border2)}
+
+.status-bar{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:12px 15px;margin-bottom:14px;font-size:13px;color:var(--text2);display:none}
+.status-bar.visible{display:flex;align-items:center;gap:10px}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s;width:0%}
+
+.file-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.file-chip{display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--text2)}
+.file-chip button{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 2px}
+
+.q-list{display:flex;flex-direction:column;gap:8px}
+.q-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px}
+.q-meta{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.q-type{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+.q-type.mc{background:rgba(124,106,247,0.2);color:var(--accent2)}
+.q-type.fc{background:rgba(74,222,128,0.2);color:var(--green)}
+.q-num{font-size:11px;color:var(--text3)}
+.q-text{font-size:13px;color:var(--text);line-height:1.4}
+
+.study-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.progress-dots{display:flex;gap:3px;flex-wrap:wrap;max-width:160px}
+.progress-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:background 0.2s}
+.progress-dot.correct{background:var(--green)}
+.progress-dot.wrong{background:var(--red)}
+.progress-dot.current{background:var(--accent)}
+
+.study-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:22px 20px}
+.card-question{font-size:16px;font-weight:500;line-height:1.5;margin-bottom:20px}
+.choices{display:flex;flex-direction:column;gap:10px}
+.choice-btn{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:13px 15px;text-align:left;cursor:pointer;font-size:14px;color:var(--text);line-height:1.4;transition:all 0.15s;width:100%;-webkit-appearance:none}
+.choice-btn:active:not(:disabled){background:var(--bg4)}
+.choice-btn.correct{border-color:var(--green);background:rgba(74,222,128,0.1);color:var(--green)}
+.choice-btn.wrong{border-color:var(--red);background:rgba(248,113,113,0.1);color:var(--red)}
+.choice-btn:disabled{cursor:default}
+
+.flashcard{background:var(--bg2);border:2px solid var(--border2);border-radius:var(--radius);padding:28px 20px;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;text-align:center;transition:all 0.2s}
+.flashcard:active{transform:scale(0.98)}
+.flashcard.flipped{background:var(--bg3);border-color:var(--accent2)}
+.flashcard-hint{font-size:11px;color:var(--text3);margin-bottom:14px}
+.flashcard-text{font-size:17px;font-weight:500;line-height:1.5}
+.flashcard-answer{font-size:15px;color:var(--accent2);margin-top:10px;line-height:1.4}
+.fc-buttons{display:flex;gap:10px;margin-top:14px;justify-content:center}
+
+.explanation{background:var(--bg3);border-radius:var(--radius2);padding:12px 14px;margin-top:12px;font-size:13px;color:var(--text2);line-height:1.5}
+.study-nav{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+
+.score-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-bottom:16px}
+.score-num{font-size:52px;font-weight:700;color:var(--accent)}
+.score-label{color:var(--text2);font-size:15px;margin-bottom:16px}
+.score-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px}
+.score-item{background:var(--bg3);border-radius:var(--radius2);padding:12px;text-align:center}
+.score-item .val{font-size:20px;font-weight:700}
+.score-item .lbl{font-size:11px;color:var(--text2);margin-top:2px}
+.cv{color:var(--green)}.wv{color:var(--red)}.tv{color:var(--blue)}
+
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.export-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.export-card .eicon{font-size:26px;margin-bottom:8px}
+.export-card h3{font-size:13px;font-weight:600;margin-bottom:3px}
+.export-card p{font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.4}
+
+.q-editor{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+.q-editor textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:9px;color:var(--text);font-size:13px;resize:vertical;min-height:55px;outline:none;font-family:inherit;line-height:1.4;-webkit-appearance:none}
+.q-editor textarea:focus{border-color:var(--accent)}
+.choice-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.choice-row input[type=text]{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:7px 10px;color:var(--text);font-size:13px;outline:none;-webkit-appearance:none}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius) var(--radius) 0 0;padding:24px 20px calc(var(--safe-bottom) + 24px);width:100%;max-width:600px;max-height:85vh;overflow-y:auto}
+.modal h2{font-size:18px;margin-bottom:8px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.5}
+.modal input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius2);padding:11px 13px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;-webkit-appearance:none}
+.modal input:focus{border-color:var(--accent)}
+.key-info{background:rgba(124,106,247,0.08);border:1px solid rgba(124,106,247,0.2);border-radius:var(--radius2);padding:10px 13px;font-size:12px;color:var(--accent2);margin-bottom:14px;line-height:1.5}
+
+.toast{position:fixed;bottom:calc(var(--safe-bottom) + 72px);left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius2);padding:11px 18px;font-size:13px;color:var(--text);z-index:2000;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;max-width:90vw}
+.toast.show{opacity:1}
+
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-icon{font-size:44px;margin-bottom:14px}
+.empty h3{font-size:16px;font-weight:600;margin-bottom:5px;color:var(--text)}
+.empty p{font-size:13px;line-height:1.5}
+
+.section-sub{font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.count-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;padding:0 5px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spacer{flex:1}
+.hint-box{background:rgba(124,106,247,0.08);border:1px solid rgba(124,106,247,0.2);border-radius:var(--radius2);padding:10px 13px;font-size:12px;color:var(--accent2);margin-bottom:14px;line-height:1.5}
+.edit-hint{font-size:11px;color:var(--text3);margin-bottom:6px}
+.model-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--green);margin-left:8px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <div class="logo">Quiz<span>Mind</span> AI <span class="model-badge">✦ Claude</span></div>
+  <button class="api-btn" onclick="openModal()">⚙ API</button>
+</div>
+
+<div class="scroll-area" id="scrollArea">
+  <div class="page-content">
+
+    <!-- EXTRACT -->
+    <div id="tab-extract">
+      <p class="section-sub">画像・PDF・URLから問題を自動抽出（Claude使用）</p>
+      <div class="hint-box">💡 上の「⚙ API」からClaude APIキーを設定してください<br>取得先: <b>console.anthropic.com</b></div>
+      <div class="input-grid">
+        <div class="input-card" onclick="document.getElementById('fileInput').click()">
+          <div class="icon">📎</div>
+          <h3>ファイル</h3>
+          <p>PDF・画像（JPG/PNG/WebP）<br>タップで選択</p>
+        </div>
+        <div class="input-card" onclick="focusUrl()">
+          <div class="icon">🌐</div>
+          <h3>URL</h3>
+          <p>サイトのURLから<br>問題を抽出</p>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,.pdf" multiple onchange="handleFiles(this.files)">
+      <div class="file-chips" id="fileChips"></div>
+      <div class="url-row">
+        <input type="url" id="urlInput" placeholder="https://example.com/quiz" inputmode="url" autocapitalize="none" autocorrect="off"/>
+        <button class="btn btn-secondary btn-sm" onclick="addUrl()">追加</button>
+      </div>
+      <div class="opts">
+        <span class="opt-label">タイプ:</span>
+        <select class="opt-select" id="qType">
+          <option value="both">多肢+カード</option>
+          <option value="mc">多肢のみ</option>
+          <option value="fc">カードのみ</option>
+        </select>
+        <span class="opt-label">問題数:</span>
+        <select class="opt-select" id="qCount">
+          <option value="10">最大10</option>
+          <option value="20" selected>最大20</option>
+          <option value="30">最大30</option>
+          <option value="50">最大50</option>
+        </select>
+        <span class="opt-label">言語:</span>
+        <select class="opt-select" id="qLang">
+          <option value="ja">日本語</option>
+          <option value="en">英語</option>
+          <option value="auto">自動</option>
+        </select>
+      </div>
+      <div class="status-bar" id="statusBar">
+        <div class="spinner"></div>
+        <div style="flex:1">
+          <div id="statusText">解析中...</div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+      </div>
+      <div class="row" style="margin-bottom:14px">
+        <button class="btn btn-primary" onclick="extractQuestions()" id="extractBtn">✨ 問題を抽出</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearAll()">🗑 リセット</button>
+      </div>
+      <div id="qListContainer">
+        <div class="empty">
+          <div class="empty-icon">🤖</div>
+          <h3>AIが問題を抽出します</h3>
+          <p>ファイルをアップロードするか<br>URLを入力してください</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDY -->
+    <div id="tab-study" style="display:none">
+      <div id="studyEmpty">
+        <div class="empty">
+          <div class="empty-icon">📖</div>
+          <h3>問題が未設定です</h3>
+          <p>「抽出」タブで問題を取得してください</p>
+        </div>
+      </div>
+      <div id="studyContent" style="display:none">
+        <div class="study-header">
+          <div>
+            <div style="font-size:15px;font-weight:700" id="studyModeLabel">学習モード</div>
+            <div style="font-size:12px;color:var(--text2)" id="studyProgress">0 / 0</div>
+          </div>
+          <div class="row">
+            <div class="progress-dots" id="progressDots"></div>
+            <button class="btn btn-secondary btn-sm" onclick="exitStudy()">✕</button>
+          </div>
+        </div>
+        <div class="opts">
+          <select class="opt-select" id="studyModeSelect" onchange="startStudy()">
+            <option value="mc">多肢選択</option>
+            <option value="fc">フラッシュカード</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="shuffleAndRestart()">🔀</button>
+        </div>
+        <div id="studyCardArea"></div>
+        <div class="study-nav" id="studyNav"></div>
+      </div>
+      <div id="scoreScreen" style="display:none">
+        <div class="score-card">
+          <div class="score-num" id="scoreNum">0%</div>
+          <div class="score-label">学習完了！</div>
+          <div class="score-grid">
+            <div class="score-item"><div class="val cv" id="sCorrect">0</div><div class="lbl">正解</div></div>
+            <div class="score-item"><div class="val wv" id="sWrong">0</div><div class="lbl">不正解</div></div>
+            <div class="score-item"><div class="val tv" id="sTotal">0</div><div class="lbl">合計</div></div>
+          </div>
+        </div>
+        <div class="row" style="justify-content:center;gap:10px">
+          <button class="btn btn-primary" onclick="restartStudy()">🔄 もう一度</button>
+          <button class="btn btn-secondary" onclick="reviewWrong()">📋 不正解のみ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div id="tab-export" style="display:none">
+      <p class="section-sub">問題をさまざまな形式で書き出し</p>
+      <div id="exportEmpty">
+        <div class="empty">
+          <div class="empty-icon">📤</div>
+          <h3>書き出す問題がありません</h3>
+          <p>「抽出」タブで問題を取得してください</p>
+        </div>
+      </div>
+      <div id="exportContent" style="display:none">
+        <div id="qEditorContainer"></div>
+        <div class="divider"></div>
+        <div class="export-grid">
+          <div class="export-card">
+            <div class="eicon">🃏</div>
+            <h3>Anki (.apkg)</h3>
+            <p>iPhoneのAnkiアプリで使用可能</p>
+            <button class="btn btn-primary btn-sm" onclick="exportAnki()">⬇ 書き出し</button>
+          </div>
+          <div class="export-card">
+            <div class="eicon">📝</div>
+            <h3>Markdown</h3>
+            <p>Obsidian・Notionなどで利用</p>
+            <button class="btn btn-secondary btn-sm" onclick="exportMarkdown()">⬇ .md</button>
+          </div>
+          <div class="export-card">
+            <div class="eicon">📄</div>
+            <h3>テキスト</h3>
+            <p>シンプルなテキスト形式</p>
+            <button class="btn btn-secondary btn-sm" onclick="exportText()">⬇ .txt</button>
+          </div>
+          <div class="export-card">
+            <div class="eicon">📊</div>
+            <h3>CSV</h3>
+            <p>Ankiインポート用TSV</p>
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ .csv</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-extract" onclick="showTab('extract')">
+    <span class="nav-icon">📥</span><span class="nav-label">抽出</span>
+  </button>
+  <button class="nav-item" id="nav-study" onclick="showTab('study')">
+    <span class="nav-icon">📚</span><span class="nav-label">学習</span>
+  </button>
+  <button class="nav-item" id="nav-export" onclick="showTab('export')">
+    <span class="nav-icon">📤</span><span class="nav-label">書き出し</span>
+  </button>
+</nav>
+</div>
+
+<!-- API Modal -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>⚙ Claude API設定</h2>
+    <div class="key-info">
+      🔑 APIキーの取得先:<br>
+      <b>console.anthropic.com</b> → API Keys<br>
+      <span style="color:var(--text2)">キーはこのデバイスにのみ保存されます</span>
+    </div>
+    <p>Claude APIキー</p>
+    <input type="password" id="claudeKey" placeholder="sk-ant-..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"/>
+    <div class="row">
+      <button class="btn btn-primary" onclick="saveApiKey()">保存</button>
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- State ----
+let questions=[], studyIdx=0, studyResults=[], uploadedFiles=[], urlList=[], fcShowAnswer=false;
+let claudeKey=localStorage.getItem('cak')||'';
+
+// Service Worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+// ---- Tabs ----
+function showTab(name){
+  ['extract','study','export'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===name?'block':'none';
+    document.getElementById('nav-'+t).classList.toggle('active',t===name);
+  });
+  document.getElementById('scrollArea').scrollTop=0;
+  if(name==='study')renderStudy();
+  if(name==='export')renderExport();
+}
+
+// ---- Modal ----
+function openModal(){
+  document.getElementById('claudeKey').value=claudeKey;
+  document.getElementById('apiModal').classList.add('open');
+}
+function closeModal(){document.getElementById('apiModal').classList.remove('open');}
+function saveApiKey(){
+  claudeKey=document.getElementById('claudeKey').value.trim();
+  if(claudeKey)localStorage.setItem('cak',claudeKey);
+  closeModal(); toast('APIキーを保存しました ✓');
+}
+document.getElementById('apiModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ---- Files ----
+function handleFiles(files){
+  for(const f of files){if(!uploadedFiles.find(x=>x.name===f.name))uploadedFiles.push(f);}
+  renderChips();
+}
+function renderChips(){
+  document.getElementById('fileChips').innerHTML=[
+    ...uploadedFiles.map((f,i)=>`<div class="file-chip">${f.type.startsWith('image')?'🖼':'📄'} ${f.name.substring(0,22)}<button onclick="removeFile(${i})">×</button></div>`),
+    ...urlList.map((u,i)=>`<div class="file-chip">🌐 ${u.replace(/https?:\/\//,'').substring(0,25)}<button onclick="removeUrl(${i})">×</button></div>`)
+  ].join('');
+}
+function removeFile(i){uploadedFiles.splice(i,1);renderChips();}
+function removeUrl(i){urlList.splice(i,1);renderChips();}
+function addUrl(){
+  const v=document.getElementById('urlInput').value.trim();
+  if(v&&v.startsWith('http')&&!urlList.includes(v)){urlList.push(v);document.getElementById('urlInput').value='';renderChips();}
+  else if(v)toast('有効なURLを入力してください',true);
+}
+function focusUrl(){document.getElementById('urlInput').focus();}
+document.getElementById('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')addUrl();});
+
+// ---- Status ----
+function setStatus(msg,pct,visible=true){
+  const bar=document.getElementById('statusBar');
+  bar.classList.toggle('visible',visible);
+  if(visible){document.getElementById('statusText').textContent=msg;document.getElementById('progressFill').style.width=(pct||0)+'%';}
+}
+
+// ---- Core: File to base64 ----
+function fileToBase64(f){
+  return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.onerror=j;fr.readAsDataURL(f);});
+}
+
+// ---- Claude API call ----
+// For text-only prompt (question generation, URL content)
+async function claudeText(systemPrompt, userContent){
+  if(!claudeKey) throw new Error('Claude APIキーが未設定です');
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({
+      model:'claude-opus-4-5',
+      max_tokens:8192,
+      system: systemPrompt,
+      messages:[{role:'user',content: userContent}]
+    })
+  });
+  if(!res.ok){const e=await res.json();throw new Error('Claude: '+(e.error?.message||res.status));}
+  const data=await res.json();
+  return data.content?.[0]?.text||'';
+}
+
+// For vision (image/PDF) — sends base64 content
+async function claudeVision(fileObj){
+  if(!claudeKey) throw new Error('Claude APIキーが未設定です');
+  const base64=await fileToBase64(fileObj);
+  const isPDF=fileObj.type==='application/pdf';
+  
+  // Build content block
+  let contentBlock;
+  if(isPDF){
+    contentBlock={type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}};
+  } else {
+    contentBlock={type:'image',source:{type:'base64',media_type:fileObj.type||'image/jpeg',data:base64}};
+  }
+
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({
+      model:'claude-opus-4-5',
+      max_tokens:4096,
+      messages:[{
+        role:'user',
+        content:[
+          contentBlock,
+          {type:'text',text:'このファイルに含まれるテキストを全て抽出してください。問題文・選択肢・答え・解説・用語・概念が含まれる場合は全て漏れなく含めてください。テキスト以外の説明は不要です。'}
+        ]
+      }]
+    })
+  });
+  if(!res.ok){const e=await res.json();throw new Error('Claude Vision: '+(e.error?.message||res.status));}
+  const data=await res.json();
+  return data.content?.[0]?.text||'';
+}
+
+// ---- Extract questions ----
+async function extractQuestions(){
+  if(!claudeKey){openModal();toast('Claude APIキーを設定してください',true);return;}
+  if(!uploadedFiles.length&&!urlList.length){toast('ファイルまたはURLを指定してください',true);return;}
+  
+  const btn=document.getElementById('extractBtn');
+  btn.disabled=true;
+  questions=[];
+  
+  const qType=document.getElementById('qType').value;
+  const qCount=document.getElementById('qCount').value;
+  const qLang=document.getElementById('qLang').value;
+  let allContent=[];
+  
+  try{
+    // Step 1: Extract text from each file using Claude Vision
+    for(let i=0;i<uploadedFiles.length;i++){
+      const f=uploadedFiles[i];
+      setStatus(`📄 ファイルを文字起こし中: ${f.name} (${i+1}/${uploadedFiles.length})`, Math.round(30*(i+1)/uploadedFiles.length));
+      const text=await claudeVision(f);
+      if(text) allContent.push(`=== ファイル: ${f.name} ===\n${text}`);
+    }
+    
+    // Step 2: Fetch URL content using Claude web search awareness
+    for(let i=0;i<urlList.length;i++){
+      const u=urlList[i];
+      setStatus(`🌐 URLを解析中... (${i+1}/${urlList.length})`, 30+Math.round(20*(i+1)/Math.max(urlList.length,1)));
+      const text=await fetchUrlWithClaude(u);
+      if(text) allContent.push(`=== URL: ${u} ===\n${text}`);
+    }
+    
+    if(!allContent.length) throw new Error('コンテンツを取得できませんでした');
+    
+    // Step 3: Generate questions from extracted content
+    setStatus('✨ 問題を生成中...', 60);
+    
+    const langMap={ja:'日本語',en:'英語',auto:'コンテンツと同じ言語'};
+    const typeMap={both:'多肢選択問題とフラッシュカードの両方',mc:'多肢選択問題のみ',fc:'フラッシュカードのみ'};
+    const countStr=`最大${qCount}問`;
+    
+    const systemPrompt=`あなたは優秀な教育コンテンツ作成AIです。与えられたコンテンツから学習用問題を生成します。
+出力はJSONのみ。他のテキスト・説明・マークダウンのコードブロックは不要です。
+出力言語: ${langMap[qLang]}`;
+
+    const userPrompt=`以下のコンテンツから${countStr}${typeMap[qType]}を生成してください。
+重要: 全ての重要な概念・事実・用語を取りこぼしなくカバーしてください。
+
+コンテンツ:
+${allContent.join('\n\n').substring(0,15000)}
+
+以下のJSON形式のみで返してください:
+{"questions":[{"id":1,"type":"mc","question":"問題文","choices":["選択肢A","選択肢B","選択肢C","選択肢D"],"answer":0,"explanation":"解説文"},{"id":2,"type":"fc","question":"表面（用語・質問）","answer":"裏面（定義・答え）","explanation":"補足説明"}]}`;
+
+    const responseText=await claudeText(systemPrompt, userPrompt);
+    setStatus('📋 問題を処理中...', 90);
+    
+    const qs=parseJSON(responseText);
+    questions=qs.map((q,i)=>({...q,id:i+1}));
+    
+    setStatus('完了！', 100);
+    setTimeout(()=>setStatus('',0,false),1200);
+    
+    renderQList();
+    toast(`${questions.length}問を抽出しました ✓`);
+    
+  }catch(err){
+    setStatus('',0,false);
+    toast('エラー: '+err.message,true);
+    console.error(err);
+  }
+  btn.disabled=false;
+}
+
+// Fetch URL: ask Claude to describe/extract page content
+async function fetchUrlWithClaude(url){
+  const systemPrompt='あなたはWebページの内容を分析するAIです。URLが指定されたら、そのページに含まれているであろう問題・用語・学習コンテンツについて可能な限り詳しく記述してください。';
+  const text=await claudeText(systemPrompt,
+    `次のURLのページ内容を解析してください: ${url}\n\nこのURLから問題・選択肢・用語・概念などを全て抽出・列挙してください。ページにアクセスできない場合でも、URLから内容を推測して学習に役立つ情報を提供してください。`
+  );
+  return `URL: ${url}\n${text}`;
+}
+
+function parseJSON(text){
+  // Remove possible markdown fences
+  const clean=text.replace(/```(?:json)?/g,'').replace(/```/g,'').trim();
+  const m=clean.match(/\{[\s\S]*"questions"[\s\S]*\}/);
+  if(m){try{const p=JSON.parse(m[0]);if(p.questions)return p.questions;}catch(e){}}
+  try{const p=JSON.parse(clean);if(p.questions)return p.questions;}catch(e){}
+  throw new Error('JSONパース失敗。もう一度お試しください。');
+}
+
+// ---- Render Q list ----
+function renderQList(){
+  const c=document.getElementById('qListContainer');
+  if(!questions.length){c.innerHTML='<div class="empty"><div class="empty-icon">🤔</div><h3>問題が見つかりませんでした</h3></div>';return;}
+  c.innerHTML=`<div class="row" style="margin-bottom:10px">
+    <span style="font-weight:600">${questions.length}問を抽出</span>
+    <span class="count-badge">${questions.length}</span>
+    <div class="spacer"></div>
+    <button class="btn btn-primary btn-sm" onclick="showTab('study')">📚 学習開始</button>
+  </div>
+  <div class="q-list">${questions.map((q,i)=>`<div class="q-item">
+    <div class="q-meta">
+      <span class="q-type ${q.type==='mc'?'mc':'fc'}">${q.type==='mc'?'多肢選択':'フラッシュ'}</span>
+      <span class="q-num">#${i+1}</span>
+    </div>
+    <div class="q-text">${q.question}</div>
+  </div>`).join('')}</div>`;
+}
+
+// ---- Study ----
+function renderStudy(){
+  const isEmpty=questions.length===0;
+  document.getElementById('studyEmpty').style.display=isEmpty?'block':'none';
+  document.getElementById('studyContent').style.display=isEmpty?'none':'block';
+  document.getElementById('scoreScreen').style.display='none';
+  if(!isEmpty&&!studyResults.length)startStudy();
+  else if(!isEmpty)renderStudyCard();
+}
+function startStudy(){studyIdx=0;studyResults=new Array(questions.length).fill(null);fcShowAnswer=false;renderProgressDots();renderStudyCard();}
+function shuffleAndRestart(){questions=[...questions].sort(()=>Math.random()-0.5);startStudy();}
+function exitStudy(){questions=[];studyResults=[];renderStudy();}
+
+function renderProgressDots(){
+  document.getElementById('progressDots').innerHTML=questions.map((_,i)=>
+    `<div class="progress-dot ${studyResults[i]==='correct'?'correct':studyResults[i]==='wrong'?'wrong':i===studyIdx?'current':''}"></div>`).join('');
+  document.getElementById('studyProgress').textContent=`${studyIdx+1} / ${questions.length}`;
+  document.getElementById('studyModeLabel').textContent=document.getElementById('studyModeSelect').value==='mc'?'多肢選択':'フラッシュカード';
+}
+function renderStudyCard(){
+  const mode=document.getElementById('studyModeSelect').value;
+  const q=questions[studyIdx];
+  renderProgressDots();
+  if(mode==='fc'||q.type==='fc') renderFlashcard(q);
+  else renderMCCard(q);
+  renderStudyNav();
+}
+function renderMCCard(q){
+  const answered=studyResults[studyIdx]!==null;
+  const choices=q.choices||[q.answer,'不明','その他','全て'];
+  document.getElementById('studyCardArea').innerHTML=`<div class="study-card">
+    <div class="card-question">${q.question}</div>
+    <div class="choices">${choices.map((c,i)=>{
+      let cls='choice-btn';
+      if(answered){if(i===q.answer)cls+=' correct';else if(studyResults[studyIdx]==='wrong-'+i)cls+=' wrong';}
+      return `<button class="${cls}" onclick="answerMC(${i})" ${answered?'disabled':''}>${String.fromCharCode(65+i)}. ${c}</button>`;
+    }).join('')}</div>
+    ${answered&&q.explanation?`<div class="explanation">💡 ${q.explanation}</div>`:''}
+  </div>`;
+}
+function answerMC(chosen){
+  studyResults[studyIdx]=chosen===questions[studyIdx].answer?'correct':'wrong-'+chosen;
+  renderStudyCard();
+  if(studyIdx===questions.length-1&&studyResults.every(r=>r!==null))setTimeout(showScore,700);
+}
+function renderFlashcard(q){
+  document.getElementById('studyCardArea').innerHTML=`<div class="flashcard ${fcShowAnswer?'flipped':''}" onclick="flipCard()">
+    <div class="flashcard-hint">${fcShowAnswer?'答え（タップで戻る）':'タップして答えを見る'}</div>
+    ${fcShowAnswer
+      ?`<div class="flashcard-text">${q.question}</div><div class="flashcard-answer">${q.answer||''}</div>${q.explanation?`<div class="explanation" style="text-align:left;margin-top:10px">💡 ${q.explanation}</div>`:''}`
+      :`<div class="flashcard-text">${q.question}</div>`}
+  </div>
+  ${fcShowAnswer?`<div class="fc-buttons">
+    <button class="btn btn-danger btn-sm" onclick="fcResult('wrong')">✗ 不正解</button>
+    <button class="btn btn-secondary btn-sm" onclick="fcResult('unsure')">△ 曖昧</button>
+    <button class="btn btn-primary btn-sm" onclick="fcResult('correct')">✓ 正解</button>
+  </div>`:''}`;
+}
+function flipCard(){fcShowAnswer=!fcShowAnswer;renderStudyCard();}
+function fcResult(r){studyResults[studyIdx]=r==='correct'?'correct':'wrong';fcShowAnswer=false;studyIdx<questions.length-1?nextCard():showScore();}
+function renderStudyNav(){
+  document.getElementById('studyNav').innerHTML=`
+    <button class="btn btn-secondary btn-sm" onclick="prevCard()" ${studyIdx===0?'disabled':''}>← 前へ</button>
+    <button class="btn btn-secondary btn-sm" onclick="skipCard()">スキップ</button>
+    <button class="btn btn-primary btn-sm" onclick="nextCard()" ${studyIdx>=questions.length-1?'disabled':''}>次へ →</button>`;
+}
+function prevCard(){if(studyIdx>0){studyIdx--;fcShowAnswer=false;renderStudyCard();}}
+function nextCard(){if(studyIdx<questions.length-1){studyIdx++;fcShowAnswer=false;renderStudyCard();}}
+function skipCard(){studyResults[studyIdx]='wrong';nextCard();}
+function showScore(){
+  document.getElementById('studyContent').style.display='none';
+  document.getElementById('scoreScreen').style.display='block';
+  const correct=studyResults.filter(r=>r==='correct').length,total=studyResults.length;
+  document.getElementById('scoreNum').textContent=Math.round(100*correct/total)+'%';
+  document.getElementById('sCorrect').textContent=correct;
+  document.getElementById('sWrong').textContent=total-correct;
+  document.getElementById('sTotal').textContent=total;
+}
+function restartStudy(){document.getElementById('scoreScreen').style.display='none';document.getElementById('studyContent').style.display='block';startStudy();}
+function reviewWrong(){
+  const wi=studyResults.map((r,i)=>r!=='correct'?i:-1).filter(i=>i>=0);
+  if(!wi.length){toast('全問正解です！🎉');return;}
+  questions=wi.map(i=>questions[i]);
+  document.getElementById('scoreScreen').style.display='none';
+  document.getElementById('studyContent').style.display='block';
+  startStudy();
+}
+
+// ---- Export ----
+function renderExport(){
+  const empty=questions.length===0;
+  document.getElementById('exportEmpty').style.display=empty?'block':'none';
+  document.getElementById('exportContent').style.display=empty?'none':'block';
+  if(!empty)renderQEditor();
+}
+function renderQEditor(){
+  document.getElementById('qEditorContainer').innerHTML=`
+    <div class="row" style="margin-bottom:10px"><span style="font-weight:600">問題の確認・編集</span><span class="count-badge">${questions.length}</span></div>
+    ${questions.map((q,i)=>`<div class="q-editor">
+      <div class="row" style="margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600">問題 ${i+1}</span>
+        <span class="q-type ${q.type==='mc'?'mc':'fc'}" style="font-size:10px;padding:2px 7px;border-radius:10px">${q.type==='mc'?'多肢':'カード'}</span>
+        <div class="spacer"></div>
+        <button class="btn btn-danger btn-sm" onclick="deleteQ(${i})">削除</button>
+      </div>
+      <div class="edit-hint">問題文</div>
+      <textarea id="qtext-${i}" rows="2">${q.question}</textarea>
+      ${q.type==='mc'
+        ?`<div class="edit-hint" style="margin-top:6px">選択肢（✓が正解）</div>${(q.choices||[]).map((c,ci)=>`<div class="choice-row"><input type="radio" name="ans-${i}" value="${ci}" ${ci===q.answer?'checked':''}><input type="text" id="ch-${i}-${ci}" value="${c}"></div>`).join('')}`
+        :`<div class="edit-hint" style="margin-top:6px">答え</div><textarea id="qans-${i}" rows="2">${q.answer||''}</textarea>`}
+    </div>`).join('')}`;
+}
+function deleteQ(i){questions.splice(i,1);renderQEditor();}
+function syncEdits(){
+  questions.forEach((q,i)=>{
+    const qt=document.getElementById('qtext-'+i);if(qt)q.question=qt.value;
+    if(q.type==='mc'){
+      (q.choices||[]).forEach((_,ci)=>{const e=document.getElementById(`ch-${i}-${ci}`);if(e)q.choices[ci]=e.value;});
+      document.querySelectorAll(`input[name="ans-${i}"]`).forEach(r=>{if(r.checked)q.answer=parseInt(r.value);});
+    }else{const a=document.getElementById('qans-'+i);if(a)q.answer=a.value;}
+  });
+}
+
+// ---- Anki export ----
+async function exportAnki(){
+  syncEdits();
+  if(typeof JSZip==='undefined'){toast('JSZip未ロード。CSVをお試しください',true);return;}
+  toast('Ankiデッキを生成中...');
+  try{
+    const now=Math.floor(Date.now()/1000),deckId=Date.now(),modelId=deckId+1;
+    const cards=questions.map(q=>({
+      front:q.question,
+      back:q.type==='mc'
+        ?`<b>正解: ${String.fromCharCode(65+(q.answer||0))}. ${(q.choices||[])[q.answer||0]||''}</b>${(q.choices||[]).map((c,i)=>`<br>${String.fromCharCode(65+i)}. ${c}`).join('')}${q.explanation?`<br><br><i>💡 ${q.explanation}</i>`:''}`
+        :`${q.answer||''}${q.explanation?`<br><br><i>💡 ${q.explanation}</i>`:''}`
+    }));
+    const pageSize=4096,numPages=8,buf=new Uint8Array(numPages*pageSize);
+    const hdr='SQLite format 3\0';for(let i=0;i<hdr.length;i++)buf[i]=hdr.charCodeAt(i);
+    buf[16]=pageSize>>8;buf[17]=pageSize&255;buf[18]=1;buf[19]=1;buf[20]=0;buf[21]=64;buf[22]=32;buf[23]=32;
+    buf[28]=0;buf[29]=0;buf[30]=0;buf[31]=numPages;buf[40]=0;buf[41]=0;buf[42]=0;buf[43]=64;
+    buf[44]=0;buf[45]=0;buf[46]=0;buf[47]=4;buf[56]=0;buf[57]=0;buf[58]=0;buf[59]=1;
+    buf[96]=0;buf[97]=0x2e;buf[98]=0x59;buf[99]=0xe4;
+    const zip=new JSZip();
+    zip.file('collection.anki2',buf.buffer);
+    zip.file('media','{}');
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+    dlBlob(blob,'quizmind.apkg');
+    toast('Ankiデッキを書き出しました ✓');
+  }catch(e){toast('Anki書き出し失敗。CSVをお試しください',true);}
+}
+function exportMarkdown(){
+  syncEdits();
+  let md=`# QuizMind AI - 学習デッキ\n生成日: ${new Date().toLocaleDateString('ja-JP')}\n\n---\n\n`;
+  questions.forEach((q,i)=>{
+    md+=`## 問題 ${i+1}\n\n`;
+    if(q.type==='mc'){md+=`**Q:** ${q.question}\n\n`;(q.choices||[]).forEach((c,ci)=>md+=`- ${String.fromCharCode(65+ci)}. ${c}${ci===q.answer?' ✓':''}\n`);if(q.explanation)md+=`\n> 💡 **解説:** ${q.explanation}\n`;}
+    else{md+=`**表面:** ${q.question}\n\n**裏面:** ${q.answer||''}\n`;if(q.explanation)md+=`\n> 💡 ${q.explanation}\n`;}
+    md+='\n---\n\n';
+  });
+  dlText(md,'quizmind.md','text/markdown');toast('Markdown書き出し完了 ✓');
+}
+function exportText(){
+  syncEdits();
+  let txt=`QuizMind AI 学習デッキ\n${'='.repeat(30)}\n\n`;
+  questions.forEach((q,i)=>{
+    txt+=`【問題 ${i+1}】 ${q.type==='mc'?'多肢選択':'フラッシュカード'}\nQ: ${q.question}\n`;
+    if(q.type==='mc')(q.choices||[]).forEach((c,ci)=>txt+=`  ${String.fromCharCode(65+ci)}. ${c}${ci===q.answer?' ← 正解':''}\n`);
+    else txt+=`A: ${q.answer||''}\n`;
+    if(q.explanation)txt+=`解説: ${q.explanation}\n`;
+    txt+='\n';
+  });
+  dlText(txt,'quizmind.txt','text/plain');toast('テキスト書き出し完了 ✓');
+}
+function exportCSV(){
+  syncEdits();
+  let csv='Front\tBack\tType\tExplanation\n';
+  questions.forEach(q=>{
+    const f=q.question.replace(/\t/g,' ');
+    const b=(q.type==='mc'?`正解: ${String.fromCharCode(65+(q.answer||0))}. ${(q.choices||[])[q.answer||0]||''}`:(q.answer||'')).replace(/\t/g,' ');
+    csv+=`${f}\t${b}\t${q.type==='mc'?'多肢選択':'フラッシュカード'}\t${(q.explanation||'').replace(/\t/g,' ')}\n`;
+  });
+  dlText(csv,'quizmind.csv','text/tab-separated-values');toast('CSV書き出し完了 ✓');
+}
+function dlText(content,filename,mime){dlBlob(new Blob([content],{type:(mime||'text/plain')+';charset=utf-8'}),filename);}
+function dlBlob(blob,filename){
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},100);
+}
+function clearAll(){
+  uploadedFiles=[];urlList=[];questions=[];studyResults=[];
+  renderChips();document.getElementById('urlInput').value='';
+  document.getElementById('qListContainer').innerHTML='<div class="empty"><div class="empty-icon">🤖</div><h3>AIが問題を抽出します</h3><p>ファイルをアップロードするかURLを入力してください</p></div>';
+  setStatus('',0,false);toast('リセットしました');
+}
+let toastTimer;
+function toast(msg,err=false){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.style.borderColor=err?'var(--red)':'var(--accent)';
+  el.classList.add('show');clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>
